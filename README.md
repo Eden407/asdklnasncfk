@@ -1,13 +1,11 @@
-# asdklnasncfk
-dfggbhdfnbbsf
-TEXT FILE 
-0#!/usr/bin/env python3
+Gang
+#!/usr/bin/env python3
 import subprocess
 import logging
 import os
 
 def setup_logging():
-    """Configure logging to both console and file."""
+    """Configure logging to both console and a log file."""
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s %(levelname)s: %(message)s',
@@ -19,13 +17,13 @@ def setup_logging():
 
 def run_command_in_session(shell, command):
     """
-    Run a command in the persistent Bash shell session.
+    Run a command in the persistent zsh shell session.
     
-    Writes the command, then appends two marker lines:
-      - One to echo the exit code (prefixed with __EXIT_CODE__)
-      - One to indicate the end of output (__COMMAND_END__)
+    The function writes the command to the shell's stdin, then appends:
+      - an echo of the exit code (prefixed with __EXIT_CODE__)
+      - an echo of a marker (__COMMAND_END__)
     
-    Reads the shell's stdout until the end marker is found.
+    It then reads stdout until the end marker is encountered.
     Returns a tuple (output, exit_code).
     """
     marker = "__COMMAND_END__"
@@ -40,11 +38,11 @@ def run_command_in_session(shell, command):
     output_lines = []
     exit_code = None
     
-    # Read until we hit the end marker.
+    # Read output until we hit the marker.
     while True:
         line = shell.stdout.readline()
         if not line:
-            break  # End-of-file
+            break  # End-of-file.
         stripped_line = line.rstrip("\n")
         if stripped_line.startswith(exit_marker_prefix):
             try:
@@ -62,9 +60,10 @@ def main():
     setup_logging()
     logging.info("=== Script started ===")
     
-    # Start a persistent Bash shell session.
+    # Start a persistent interactive zsh shell session.
+    # Using the '-i' flag ensures that .zshrc is automatically sourced.
     shell = subprocess.Popen(
-        ["/bin/bash"],
+        ["/bin/zsh", "-i"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -72,15 +71,14 @@ def main():
         bufsize=1,
     )
     
-    # Source ~/.bashrc if it exists.
-    bashrc_path = os.path.expanduser("~/.bashrc")
-    if os.path.exists(bashrc_path):
-        output, code = run_command_in_session(shell, f"source {bashrc_path}")
-        logging.info(f"Sourced {bashrc_path}. Output: {output}. Exit code: {code}")
-    else:
-        logging.warning(f"{bashrc_path} not found. Continuing without sourcing it.")
+    # (Optional) You can check that .zshrc was sourced by running a command defined in it.
+    # For example, if 'kgp' is defined in your .zshrc, you could test it here.
+    # Uncomment the following lines to test:
+    #
+    # test_output, test_code = run_command_in_session(shell, "which kgp")
+    # logging.info(f"Test command output: {test_output} (exit code {test_code})")
     
-    # Prompt for environment type with flexible input options.
+    # Prompt for environment type with flexible input.
     env_input = input(
         "Select the ENV type:\n"
         "  (A)utomation, (C)I, or (Q)A\n"
@@ -106,15 +104,15 @@ def main():
     
     logging.info(f"Selected ENV: {env_name} with prefix: {prefix}")
     
-    # Prompt for numbers.
+    # Prompt for numbers (e.g., "02 03 04").
     numbers_input = input("Enter numbers separated by spaces (from 01 to 36, e.g., 02 03 04): ").strip()
     numbers = numbers_input.split()
     logging.info(f"Numbers received: {numbers}")
     
-    # List of custom commands to run.
+    # Define the list of custom commands to run.
     custom_commands = ["kgp", "asd", "kli"]
     
-    # For each number, execute the commands in the persistent Bash shell.
+    # For each number, run the custom commands in the persistent zsh session.
     for num in numbers:
         full_env = f"{prefix}{num}"
         print(f"sk {full_env}")
@@ -134,7 +132,7 @@ def main():
     
     logging.info("=== Script ended ===")
     
-    # Terminate the persistent Bash shell session.
+    # Terminate the persistent zsh shell session.
     shell.stdin.write("exit\n")
     shell.stdin.flush()
     shell.wait()
