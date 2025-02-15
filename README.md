@@ -1,11 +1,10 @@
-Gang
 #!/usr/bin/env python3
 import subprocess
 import logging
 import os
 
 def setup_logging():
-    """Configure logging to both console and a log file."""
+    """Configure logging to both console and file."""
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s %(levelname)s: %(message)s',
@@ -19,17 +18,17 @@ def run_command_in_session(shell, command):
     """
     Run a command in the persistent zsh shell session.
     
-    The function writes the command to the shell's stdin, then appends:
+    Writes the command to shell.stdin, then appends:
       - an echo of the exit code (prefixed with __EXIT_CODE__)
       - an echo of a marker (__COMMAND_END__)
     
-    It then reads stdout until the end marker is encountered.
+    Reads from shell.stdout until the marker is encountered.
     Returns a tuple (output, exit_code).
     """
     marker = "__COMMAND_END__"
     exit_marker_prefix = "__EXIT_CODE__"
     
-    # Write the command, then echo the exit code and marker.
+    # Send the command to the shell.
     shell.stdin.write(command + "\n")
     shell.stdin.write(f"echo {exit_marker_prefix}$?\n")
     shell.stdin.write(f"echo {marker}\n")
@@ -38,7 +37,7 @@ def run_command_in_session(shell, command):
     output_lines = []
     exit_code = None
     
-    # Read output until we hit the marker.
+    # Read until the marker is reached.
     while True:
         line = shell.stdout.readline()
         if not line:
@@ -61,7 +60,7 @@ def main():
     logging.info("=== Script started ===")
     
     # Start a persistent interactive zsh shell session.
-    # Using the '-i' flag ensures that .zshrc is automatically sourced.
+    # The '-i' flag ensures that your ~/.zshrc is automatically sourced.
     shell = subprocess.Popen(
         ["/bin/zsh", "-i"],
         stdin=subprocess.PIPE,
@@ -70,13 +69,6 @@ def main():
         text=True,
         bufsize=1,
     )
-    
-    # (Optional) You can check that .zshrc was sourced by running a command defined in it.
-    # For example, if 'kgp' is defined in your .zshrc, you could test it here.
-    # Uncomment the following lines to test:
-    #
-    # test_output, test_code = run_command_in_session(shell, "which kgp")
-    # logging.info(f"Test command output: {test_output} (exit code {test_code})")
     
     # Prompt for environment type with flexible input.
     env_input = input(
@@ -109,18 +101,26 @@ def main():
     numbers = numbers_input.split()
     logging.info(f"Numbers received: {numbers}")
     
-    # Define the list of custom commands to run.
+    # List of custom commands to run.
     custom_commands = ["kgp", "asd", "kli"]
     
-    # For each number, run the custom commands in the persistent zsh session.
+    # Process each number.
     for num in numbers:
         full_env = f"{prefix}{num}"
-        print(f"sk {full_env}")
+        print(f"\nsk {full_env}")
         logging.info(f"sk {full_env}")
         
+        # Execute each custom command.
         for cmd in custom_commands:
             logging.info(f"Executing command: {cmd}")
             output, code = run_command_in_session(shell, cmd)
+            
+            # Print output to the console.
+            print(f"\nOutput from '{cmd}':")
+            print(output)
+            print(f"Exit code: {code}")
+            
+            # Log output and status.
             logging.info(f"Output from '{cmd}':\n{output}")
             if code is None or code != 0:
                 logging.error(f"Command '{cmd}' failed with exit code {code}")
