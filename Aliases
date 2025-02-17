@@ -1,0 +1,18 @@
+dup() {
+  osascript <<'EOF'
+tell application "iTerm2"
+  tell current window
+    tell current tab
+      set sessCount to count of sessions
+      if sessCount = 1 then
+        -- If only one pane, split it (vertically; change to "split horizontally" if preferred)
+        tell current session to split vertically with default profile
+      else
+        -- If already split, duplicate just the current session
+        tell current session to duplicate session
+      end if
+    end tell
+  end tell
+end tell
+EOF
+}
