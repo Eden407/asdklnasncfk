@@ -1,36 +1,36 @@
 .dup() {
-  # Number of recent commands to capture; adjust as needed.
+  # Number of recent commands to inspect; adjust as needed.
   local num=10
-  # Capture the last N commands from history (excluding the .dup command)
+  # Capture the last several commands from history (excluding the .dup command)
   local commands
   commands=$(fc -l -$((num+1)) -1 | sed -E 's/^[[:space:]]*[0-9]+[[:space:]]*//')
-  # Remove lines that consist solely of ".dup"
+  # Remove any lines that consist solely of ".dup"
   commands=$(echo "$commands" | grep -v -E '^[[:space:]]*\.dup[[:space:]]*$')
-  # Filter to include only commands starting with "sk xyz" (followed by anything)
-  commands=$(echo "$commands" | grep -E '^sk[[:space:]]xyz.*')
+  # Filter to include only commands starting with "sk xyz" (with anything following)
+  # Then take only the most recent (last) matching line.
+  commands=$(echo "$commands" | grep -E '^sk[[:space:]]xyz.*' | tail -n 1)
 
-  # Build the AppleScript command block: each command becomes a write text line.
-  local script_cmds=""
-  while IFS= read -r line; do
-    # Escape any embedded double quotes.
-    local escaped_line
-    escaped_line=$(printf '%s' "$line" | sed 's/"/\\"/g')
-    script_cmds="${script_cmds}
-        write text \"${escaped_line}\"
-    "
-  done <<< "$commands"
+  # If no matching command is found, inform the user and exit.
+  if [ -z "$commands" ]; then
+    echo "No command found starting with 'sk xyz' in recent history."
+    return 1
+  fi
+
+  # Escape any embedded double quotes in the command.
+  local escaped_line
+  escaped_line=$(printf '%s' "$commands" | sed 's/"/\\"/g')
 
   osascript <<EOF
 tell application "iTerm2"
   tell current window
     tell current tab
       tell current session
-        -- Split the current session vertically, returning the new session.
+        -- Split the current session vertically; this returns the new session.
         set newSession to (split vertically with default profile)
       end tell
       delay 1
       tell newSession
-$script_cmds
+        write text "$escaped_line"
       end tell
     end tell
   end tell
