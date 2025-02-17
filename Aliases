@@ -1,13 +1,13 @@
-dup() {
+.dup() {
   # Number of recent commands to capture; adjust as needed.
   local num=10
-  # Capture the last N commands from history (excluding the current .dup command)
+  # Capture the last N commands from history (excluding the .dup command)
+  # Use sed -E to remove the leading numbers and any spaces.
   local commands
-  commands=$(fc -l -$((num+1)) -1 | sed 's/^[[:space:]]*[0-9]\+[[:space:]]*//')
+  commands=$(fc -l -$((num+1)) -1 | sed -E 's/^[[:space:]]*[0-9]+[[:space:]]*//')
   commands=$(echo "$commands" | grep -v '^\.dup')
 
-  # Build the AppleScript commands block.
-  # Each command is converted to a write text command.
+  # Build the AppleScript command block: each command becomes a write text line.
   local script_cmds=""
   while IFS= read -r line; do
     # Escape any embedded double quotes.
@@ -23,7 +23,7 @@ tell application "iTerm2"
   tell current window
     tell current tab
       tell current session
-        -- Split the current session vertically; this returns the new session.
+        -- Split the current session vertically, which returns the new session.
         set newSession to (split vertically with default profile)
       end tell
       delay 1
