@@ -1,4 +1,4 @@
-.dup() {
+dup() {
   # Number of recent commands to capture; adjust as needed.
   local num=10
   # Capture the last N commands from history (excluding the current .dup command)
@@ -6,10 +6,11 @@
   commands=$(fc -l -$((num+1)) -1 | sed 's/^[[:space:]]*[0-9]\+[[:space:]]*//')
   commands=$(echo "$commands" | grep -v '^\.dup')
 
-  # Build AppleScript commands: for each line, we create a write text command.
+  # Build the AppleScript commands block.
+  # Each command is converted to a write text command.
   local script_cmds=""
   while IFS= read -r line; do
-    # Escape any embedded double quotes for AppleScript.
+    # Escape any embedded double quotes.
     local escaped_line
     escaped_line=$(printf '%s' "$line" | sed 's/"/\\"/g')
     script_cmds="${script_cmds}
@@ -21,9 +22,10 @@
 tell application "iTerm2"
   tell current window
     tell current tab
-      -- Create a vertical split (new pane)
-      set newSession to (current session's split vertically with default profile)
-      -- Wait 1 second to let the new pane initialize
+      tell current session
+        -- Split the current session vertically; this returns the new session.
+        set newSession to (split vertically with default profile)
+      end tell
       delay 1
       tell newSession
 $script_cmds
