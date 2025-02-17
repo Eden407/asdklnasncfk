@@ -1,16 +1,17 @@
-dup() {
-  osascript <<'EOF'
+.dup() {
+  local current_dir=$(pwd)
+  # Capture the last few commands (adjust 5 as needed)
+  local history_snippet=$(fc -l -5 | sed 's/^[[:space:]]*[0-9]\+[[:space:]]*//')
+  osascript <<EOF
 tell application "iTerm2"
   tell current window
     tell current tab
-      set sessCount to count of sessions
-      if sessCount = 1 then
-        -- If only one pane, split it (vertically; change to "split horizontally" if preferred)
-        tell current session to split vertically with default profile
-      else
-        -- If already split, duplicate just the current session
-        tell current session to duplicate session
-      end if
+      set newSession to (current session's split vertically with default profile)
+      tell newSession
+        write text "cd '$current_dir'"
+        delay 0.1
+        write text "$history_snippet"
+      end tell
     end tell
   end tell
 end tell
