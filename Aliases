@@ -1,16 +1,32 @@
 .dup() {
-  local current_dir=$(pwd)
-  # Capture the last few commands (adjust 5 as needed)
-  local history_snippet=$(fc -l -5 | sed 's/^[[:space:]]*[0-9]\+[[:space:]]*//')
+  # Number of recent commands to capture; adjust as needed.
+  local num=10
+  # Capture the last N commands from history (excluding the current .dup command)
+  local commands
+  commands=$(fc -l -$((num+1)) -1 | sed 's/^[[:space:]]*[0-9]\+[[:space:]]*//')
+  commands=$(echo "$commands" | grep -v '^\.dup')
+
+  # Build AppleScript commands: for each line, we create a write text command.
+  local script_cmds=""
+  while IFS= read -r line; do
+    # Escape any embedded double quotes for AppleScript.
+    local escaped_line
+    escaped_line=$(printf '%s' "$line" | sed 's/"/\\"/g')
+    script_cmds="${script_cmds}
+        write text \"${escaped_line}\"
+    "
+  done <<< "$commands"
+
   osascript <<EOF
 tell application "iTerm2"
   tell current window
     tell current tab
+      -- Create a vertical split (new pane)
       set newSession to (current session's split vertically with default profile)
+      -- Wait 1 second to let the new pane initialize
+      delay 1
       tell newSession
-        write text "cd '$current_dir'"
-        delay 0.1
-        write text "$history_snippet"
+$script_cmds
       end tell
     end tell
   end tell
