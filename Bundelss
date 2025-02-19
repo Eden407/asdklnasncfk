@@ -3,53 +3,51 @@ import re
 import os
 
 def main():
-    # Ask the user for the Apple app name
-    app_name = input("Enter the Apple app name: ").strip()
+    # Provide explanation for the user.
+    print("Welcome!")
+    print("To retrieve the Bundle ID of an App Store app, you need its App ID.")
+    print("When you copy an App Store link, you'll see something like:")
+    print("  https://apps.apple.com/us/app/instagram/id389801252?mt=8")
+    print("In this example, the App ID is '389801252' (the numbers following 'id').")
+    print("You can paste either the full URL or just the numeric App ID.\n")
     
-    # Use the iTunes Search API to look up the app by name.
-    # The 'entity=software' parameter restricts the results to iOS apps.
-    search_url = f"https://itunes.apple.com/search?term={app_name}&entity=software"
-    search_response = requests.get(search_url)
-    if search_response.status_code != 200:
-        print("Failed to retrieve search data from the iTunes API.")
+    # Wait for the user to enter the App ID or URL.
+    user_input = input("Enter the App Store URL or the App ID: ").strip()
+    
+    # Extract the numeric app ID from the input.
+    id_match = re.search(r'(\d+)', user_input)
+    if not id_match:
+        print("Could not extract an App ID from your input. Please ensure you provide a valid App Store URL or app ID.")
         return
     
-    search_data = search_response.json()
-    results = search_data.get("results", [])
-    if not results:
-        print("No app found with the name provided.")
-        return
+    app_id = id_match.group(1)
+    print(f"Extracted App ID: {app_id}\n")
     
-    # For simplicity, select the first result.
-    first_result = results[0]
-    app_id = first_result.get("trackId")
-    found_app_name = first_result.get("trackName")
-    print(f"Found app: {found_app_name} (ID: {app_id})")
-    
-    # Use the iTunes Lookup API with the app ID to get detailed information.
+    # Construct the iTunes Lookup URL using the extracted app ID.
     lookup_url = f"https://itunes.apple.com/lookup?id={app_id}"
-    lookup_response = requests.get(lookup_url)
-    if lookup_response.status_code != 200:
+    
+    # Request the app details from the iTunes Lookup API.
+    response = requests.get(lookup_url)
+    if response.status_code != 200:
         print("Failed to retrieve app details from the iTunes API.")
         return
 
-    # Write the lookup response to a temporary file.
+    # Save the API response to a temporary file.
     filename = "appinfo.txt"
     with open(filename, "w", encoding="utf-8") as file:
-        file.write(lookup_response.text)
+        file.write(response.text)
     
     # Read the file content.
     with open(filename, "r", encoding="utf-8") as file:
         content = file.read()
     
     # Extract the bundle ID using a regular expression.
-    # The JSON data includes a key "bundleId" with its value.
     match = re.search(r'"bundleId"\s*:\s*"([^"]+)"', content)
     if match:
         bundle_id = match.group(1)
         print("Bundle ID:", bundle_id)
     else:
-        print("Bundle ID not found in the app details.")
+        print("Bundle ID not found in the retrieved data.")
     
     # Delete the temporary file.
     try:
@@ -57,5 +55,5 @@ def main():
     except OSError as e:
         print("Error deleting the temporary file:", e)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
