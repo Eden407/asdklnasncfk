@@ -1,73 +1,71 @@
-import requests
 import re
-import os
+import time
+import requests
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 def main():
-    # Explain how to get the App ID
-    print("Welcome!")
-    print("This script will help you retrieve the Bundle ID for an iOS app.")
-    print("\nStep 1: Enter the app name below.")
-    print("Step 2: Open your browser and search for \"<App Name> app store ios\" (for example, 'Instagram app store ios').")
-    print("Step 3: Click on the first search result. In the URL, you will see something like:")
-    print("        https://apps.apple.com/us/app/instagram/id389801252?mt=8")
-    print("        Note that the app ID is the numeric part following 'id' (in this example, 389801252).")
-    print("Step 4: Paste the full URL or just the numeric App ID when prompted.\n")
-    
-    # Get the app name (for user context only)
+    # Ask the user for the app name.
     app_name = input("Enter the app name: ").strip()
     
-    # Prompt the user for the App Store URL or the App ID
-    user_input = input("\nPaste the App Store URL (or just the App ID): ").strip()
+    # Construct the Google search query.
+    # We search for "<App Name> app store ios".
+    query = f"{app_name} app store ios"
+    search_url = f"https://www.google.com/search?q={query.replace(' ', '+')}"
     
-    # Extract the numeric app ID from the user input.
-    # This regex finds a sequence of 8 or more digits.
-    id_match = re.search(r'\b(\d{8,})\b', user_input)
-    if not id_match:
-        print("Could not find a numeric App ID in your input. Please ensure you copy a valid URL or App ID.")
+    # Launch Chrome (ensure chromedriver is installed/in PATH).
+    driver = webdriver.Chrome()
+    driver.get(search_url)
+    
+    try:
+        # Wait for the search results to load and select the first result.
+        # Google’s result page typically wraps result links in a <div class="yuRUbf"> element.
+        first_result = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.yuRUbf a'))
+        )
+        first_result.click()
+    except Exception as e:
+        print("Error finding or clicking the search result:", e)
+        driver.quit()
         return
+
+    # Wait a few seconds to allow the page to load.
+    time.sleep(3)
     
+    # Get the current URL after navigating.
+    current_url = driver.current_url
+    print("Navigated to URL:", current_url)
+    
+    # Attempt to extract the App ID from the URL.
+    # App Store URLs typically contain 'id' followed by only numbers, e.g., ".../id389801252?..."
+    id_match = re.search(r'id(\d+)', current_url)
+    if not id_match:
+        print("Error: Could not extract a numeric App ID from the URL.")
+        driver.quit()
+        return
     app_id = id_match.group(1)
-    print(f"\nExtracted App ID: {app_id}\n")
+    print("Extracted App ID:", app_id)
     
-    # Construct the lookup URL using the extracted app ID.
+    # Optionally, use the extracted App ID to query the iTunes Lookup API for the bundle ID.
     lookup_url = f"https://itunes.apple.com/lookup?id={app_id}"
-    
-    # Request app details from the iTunes Lookup API.
     response = requests.get(lookup_url)
     if response.status_code != 200:
-        print("Error: Failed to retrieve data from the iTunes API.")
-        return
-    
-    # Save the response to a temporary file.
-    temp_filename = "appinfo.txt"
-    try:
-        with open(temp_filename, "w", encoding="utf-8") as file:
-            file.write(response.text)
-    except Exception as e:
-        print("Error writing to temporary file:", e)
-        return
-    
-    # Read the file content.
-    try:
-        with open(temp_filename, "r", encoding="utf-8") as file:
-            content = file.read()
-    except Exception as e:
-        print("Error reading from temporary file:", e)
-        return
-    
-    # Use regex to extract the bundle ID from the JSON content.
-    bundle_match = re.search(r'"bundleId"\s*:\s*"([^"]+)"', content)
-    if bundle_match:
-        bundle_id = bundle_match.group(1)
-        print("Bundle ID:", bundle_id)
+        print("Error retrieving data from the iTunes API.")
     else:
-        print("Could not locate the Bundle ID in the retrieved data.")
+        data = response.json()
+        if data.get('resultCount', 0) > 0:
+            bundle_id = data['results'][0].get('bundleId')
+            if bundle_id:
+                print("Bundle ID:", bundle_id)
+            else:
+                print("Bundle ID not found in the API response.")
+        else:
+            print("No results found in the iTunes API for this App ID.")
     
-    # Delete the temporary file.
-    try:
-        os.remove(temp_filename)
-    except Exception as e:
-        print("Error deleting temporary file:", e)
+    # Close the browser.
+    driver.quit()
 
 if __name__ == "__main__":
     main()
