@@ -3,57 +3,71 @@ import re
 import os
 
 def main():
-    # Provide explanation for the user.
+    # Explain how to get the App ID
     print("Welcome!")
-    print("To retrieve the Bundle ID of an App Store app, you need its App ID.")
-    print("When you copy an App Store link, you'll see something like:")
-    print("  https://apps.apple.com/us/app/instagram/id389801252?mt=8")
-    print("In this example, the App ID is '389801252' (the numbers following 'id').")
-    print("You can paste either the full URL or just the numeric App ID.\n")
+    print("This script will help you retrieve the Bundle ID for an iOS app.")
+    print("\nStep 1: Enter the app name below.")
+    print("Step 2: Open your browser and search for \"<App Name> app store ios\" (for example, 'Instagram app store ios').")
+    print("Step 3: Click on the first search result. In the URL, you will see something like:")
+    print("        https://apps.apple.com/us/app/instagram/id389801252?mt=8")
+    print("        Note that the app ID is the numeric part following 'id' (in this example, 389801252).")
+    print("Step 4: Paste the full URL or just the numeric App ID when prompted.\n")
     
-    # Wait for the user to enter the App ID or URL.
-    user_input = input("Enter the App Store URL or the App ID: ").strip()
+    # Get the app name (for user context only)
+    app_name = input("Enter the app name: ").strip()
     
-    # Extract the numeric app ID from the input.
-    id_match = re.search(r'(\d+)', user_input)
+    # Prompt the user for the App Store URL or the App ID
+    user_input = input("\nPaste the App Store URL (or just the App ID): ").strip()
+    
+    # Extract the numeric app ID from the user input.
+    # This regex finds a sequence of 8 or more digits.
+    id_match = re.search(r'\b(\d{8,})\b', user_input)
     if not id_match:
-        print("Could not extract an App ID from your input. Please ensure you provide a valid App Store URL or app ID.")
+        print("Could not find a numeric App ID in your input. Please ensure you copy a valid URL or App ID.")
         return
     
     app_id = id_match.group(1)
-    print(f"Extracted App ID: {app_id}\n")
+    print(f"\nExtracted App ID: {app_id}\n")
     
-    # Construct the iTunes Lookup URL using the extracted app ID.
+    # Construct the lookup URL using the extracted app ID.
     lookup_url = f"https://itunes.apple.com/lookup?id={app_id}"
     
-    # Request the app details from the iTunes Lookup API.
+    # Request app details from the iTunes Lookup API.
     response = requests.get(lookup_url)
     if response.status_code != 200:
-        print("Failed to retrieve app details from the iTunes API.")
+        print("Error: Failed to retrieve data from the iTunes API.")
         return
-
-    # Save the API response to a temporary file.
-    filename = "appinfo.txt"
-    with open(filename, "w", encoding="utf-8") as file:
-        file.write(response.text)
+    
+    # Save the response to a temporary file.
+    temp_filename = "appinfo.txt"
+    try:
+        with open(temp_filename, "w", encoding="utf-8") as file:
+            file.write(response.text)
+    except Exception as e:
+        print("Error writing to temporary file:", e)
+        return
     
     # Read the file content.
-    with open(filename, "r", encoding="utf-8") as file:
-        content = file.read()
+    try:
+        with open(temp_filename, "r", encoding="utf-8") as file:
+            content = file.read()
+    except Exception as e:
+        print("Error reading from temporary file:", e)
+        return
     
-    # Extract the bundle ID using a regular expression.
-    match = re.search(r'"bundleId"\s*:\s*"([^"]+)"', content)
-    if match:
-        bundle_id = match.group(1)
+    # Use regex to extract the bundle ID from the JSON content.
+    bundle_match = re.search(r'"bundleId"\s*:\s*"([^"]+)"', content)
+    if bundle_match:
+        bundle_id = bundle_match.group(1)
         print("Bundle ID:", bundle_id)
     else:
-        print("Bundle ID not found in the retrieved data.")
+        print("Could not locate the Bundle ID in the retrieved data.")
     
     # Delete the temporary file.
     try:
-        os.remove(filename)
-    except OSError as e:
-        print("Error deleting the temporary file:", e)
+        os.remove(temp_filename)
+    except Exception as e:
+        print("Error deleting temporary file:", e)
 
 if __name__ == "__main__":
     main()
